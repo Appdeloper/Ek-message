@@ -424,7 +424,7 @@ footer { padding: var(--s7) var(--gut-r) calc(var(--safe-b) + var(--s9)) var(--g
     <p class="cal" id="loader-cal">Calibrating the multiverse for <span data-nick>Manaswi</span>…</p>
     <div class="enter-row" id="enter-row" hidden>
       <button class="btn solid" id="enter-sound" type="button">✦ Open the Portal <span class="sr-only">(tap to enter, with sound)</span></button>
-      <span style="font-size:12px;color:#C9BFB2">tap to enter · sound on</span>
+      <span id="enter-hint" style="font-size:12px;color:#C9BFB2">tap to enter · sound on</span>
       <button class="link-btn" id="enter-quiet" type="button">Enter without sound</button>
       <button class="link-btn" id="enter-skip" type="button">Skip intro</button>
     </div>
@@ -671,6 +671,7 @@ footer { padding: var(--s7) var(--gut-r) calc(var(--safe-b) + var(--s9)) var(--g
 <script>
 (() => {
 "use strict";
+const SONG_URL = null;
 /* ════════════════════════════════════════════════════════════════════════════
    CONFIG — every personal detail lives here. Edit freely, then: node tools/build.mjs
    Photos are in the PHOTOS block below (keys p1…p8, letter, baby).
@@ -791,6 +792,11 @@ const HAS = {
 if (HAS.st) gsap.registerPlugin(ScrollTrigger);
 if (HAS.split) gsap.registerPlugin(SplitText);
 
+/* Layer hooks: the web + storm layers (layers.js) plug in here; the base scenes never depend on them. */
+const Bus = new EventTarget();
+const emit = (name, detail) => Bus.dispatchEvent(new CustomEvent(name, { detail }));
+const Hooks = { intro: null, swing: null };
+
 const photo = (key) => PHOTOS[key] || PHOTOS.p1;
 const NICK = CONFIG.nickname || CONFIG.name;
 let FROZEN = false;
@@ -839,10 +845,20 @@ function toast(msg, ms = 2600) {
   toastT = setTimeout(() => (t.hidden = true), ms);
 }
 
-/* ═══════════════ AUDIO — Tone.js, 100% generated ═══════════════ */
+/* ═══════════════ AUDIO — her song (assets/manaswi-theme.mp3) or a generated score ═══════════════
+   Song: <audio> → MediaElementSource → Analyser → Gain → speakers, started inside the "Open the Portal" tap.
+   No song / it fails → Tone.js score (D-dorian pad, drone, bells, 92 BPM war-drum, thunder) so it's never silent.
+   Volume zones: normal 0.8 · letter 25% · finale 100%, 1.5 s crossfades. Mute is remembered. */
 const Audio = (() => {
-  let ready = false, muted = false, layer = 0, chordIdx = 0;
+  let ready = false, muted = store("mv-muted") === "1", layer = 0, chordIdx = 0, mode = "off", toneOk = false, scoreOn = false;
   const n = {};
+  const zones = { letter: false, finale: false };
+  const LEVEL = { normal: 0.8, letter: 0.25, finale: 1 };
+  const level = () => (zones.finale ? LEVEL.finale : zones.letter ? LEVEL.letter : LEVEL.normal);
+  const toDb = (g) => -12 + 20 * Math.log10(g / LEVEL.normal); // the score follows the same loudness curve
+  let song = null;
+  const subs = new Set();
+  const changed = () => subs.forEach((f) => f());
   const CHORDS = [
     ["D3", "F3", "A3", "C4", "E4"], // Dm9
     ["A#2", "D3", "F3", "A3"], // Bbmaj7
@@ -851,29 +867,41 @@ const Audio = (() => {
   ];
   const PENTA = ["D5", "F5", "G5", "A5", "C6", "D6"];
   const safe = (fn) => {
-    if (!ready || muted) return;
+    if (!toneOk || muted) return;
     try { fn(); } catch (e) { /* audio is decoration; never break the page */ }
   };
 
-  function build() {
-    n.master = new Tone.Volume(-12).toDestination();
+  function buildSfx() {
+    n.master = new Tone.Volume(toDb(level())).toDestination();
+    n.an = new Tone.Analyser("fft", 64);
+    n.master.connect(n.an);
     n.reverb = new Tone.Reverb({ decay: 8, wet: 0.45 }).connect(n.master);
+    n.bell = new Tone.PolySynth(Tone.FMSynth, { harmonicity: 3.01, modulationIndex: 12, envelope: { attack: 0.001, decay: 1.2, sustain: 0, release: 1.5 }, modulationEnvelope: { attack: 0.002, decay: 0.4, sustain: 0, release: 0.4 }, volume: -20 }).connect(n.reverb);
+    n.noiseF = new Tone.Filter(400, "bandpass").connect(n.reverb);
+    n.noise = new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.06, decay: 0.55, sustain: 0 }, volume: -14 }).connect(n.noiseF);
+    n.thwipF = new Tone.Filter(2600, "bandpass").connect(n.master);
+    n.thwip = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.002, decay: 0.12, sustain: 0 }, volume: -20 }).connect(n.thwipF);
+    n.metal = new Tone.MetalSynth({ envelope: { attack: 0.001, decay: 0.09, release: 0.02 }, harmonicity: 5.1, modulationIndex: 16, resonance: 2600, octaves: 1.2, volume: -26 }).connect(n.master);
+    n.metal.frequency.value = 420;
+    // Polyphonic so loops and one-shots can overlap without Tone's scheduling conflicts.
+    n.boom = new Tone.PolySynth(Tone.MembraneSynth, { pitchDecay: 0.09, octaves: 6, envelope: { attack: 0.001, decay: 1.3, sustain: 0 }, volume: -4 }).connect(n.master);
+    n.rumbleF = new Tone.Filter(320, "lowpass").connect(n.master);
+    n.rumble = new Tone.NoiseSynth({ noise: { type: "brown" }, envelope: { attack: 0.04, decay: 2.6, sustain: 0 }, volume: -6 }).connect(n.rumbleF);
+    n.fan = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "fattriangle", count: 3, spread: 18 }, envelope: { attack: 0.02, decay: 0.4, sustain: 0.6, release: 2.2 }, volume: -12 }).connect(n.reverb);
+  }
+
+  function buildScore() {
+    if (scoreOn || !toneOk) return;
+    scoreOn = true;
     n.chorus = new Tone.Chorus(2.5, 3.5, 0.6).connect(n.reverb).start();
     n.filter = new Tone.Filter(900, "lowpass").connect(n.chorus);
     n.lfo = new Tone.LFO(0.05, 380, 1900).connect(n.filter.frequency).start();
     n.pad = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "fatsawtooth", count: 3, spread: 28 }, envelope: { attack: 2, decay: 1, sustain: 0.7, release: 4 }, volume: -18 }).connect(n.filter);
-    // Polyphonic so the ambient loop and one-shot chimes can overlap without scheduling conflicts.
-    n.bell = new Tone.PolySynth(Tone.FMSynth, { harmonicity: 3.01, modulationIndex: 12, envelope: { attack: 0.001, decay: 1.2, sustain: 0, release: 1.5 }, modulationEnvelope: { attack: 0.002, decay: 0.4, sustain: 0, release: 0.4 }, volume: -20 }).connect(n.reverb);
     n.drone = new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 4, sustain: 1, release: 4 }, volume: -16 }).connect(n.master);
     n.droneHi = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 5, sustain: 1, release: 4 }, volume: -30 }).connect(n.filter);
-    n.noiseF = new Tone.Filter(400, "bandpass").connect(n.reverb);
-    n.noise = new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.06, decay: 0.55, sustain: 0 }, volume: -14 }).connect(n.noiseF);
-    n.metal = new Tone.MetalSynth({ envelope: { attack: 0.001, decay: 0.09, release: 0.02 }, harmonicity: 5.1, modulationIndex: 16, resonance: 2600, octaves: 1.2, volume: -26 }).connect(n.master);
-    n.metal.frequency.value = 420;
-    n.boom = new Tone.PolySynth(Tone.MembraneSynth, { pitchDecay: 0.09, octaves: 6, envelope: { attack: 0.001, decay: 1.3, sustain: 0 }, volume: -4 }).connect(n.master);
-    n.fan = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "fattriangle", count: 3, spread: 18 }, envelope: { attack: 0.02, decay: 0.4, sustain: 0.6, release: 2.2 }, volume: -12 }).connect(n.reverb);
-
-    Tone.Transport.bpm.value = 68;
+    n.drumF = new Tone.Filter(260, "lowpass").connect(n.master);
+    n.drum = new Tone.PolySynth(Tone.MembraneSynth, { pitchDecay: 0.05, octaves: 4, envelope: { attack: 0.002, decay: 0.5, sustain: 0 }, volume: -10 }).connect(n.drumF);
+    Tone.Transport.bpm.value = 92;
     // Loop callbacks run inside Tone's scheduler, outside any of our try/catch: guard them here.
     new Tone.Loop((time) => {
       try { n.pad.triggerAttackRelease(CHORDS[chordIdx % 4], "2m", time, 0.45); } catch (e) {}
@@ -883,33 +911,133 @@ const Audio = (() => {
       if (layer < 1 || muted || Math.random() > 0.26) return;
       try { n.bell.triggerAttackRelease(PENTA[(Math.random() * PENTA.length) | 0], "16n", time, rand(0.3, 0.7)); } catch (e) {}
     }, "8n").start("1m");
+    let beat = 0; // soft war-drum: low hits on 1 and 3, a ghost note before the bar
+    new Tone.Loop((time) => {
+      const b = beat++ % 4;
+      try {
+        if (b === 0 || b === 2) n.drum.triggerAttackRelease(b === 0 ? "D1" : "A0", "8n", time, b === 0 ? 0.55 : 0.35);
+        else if (b === 3 && Math.random() < 0.5) n.drum.triggerAttackRelease("D1", "16n", time + Tone.Time("8n").toSeconds(), 0.18);
+      } catch (e) {}
+    }, "4n").start("2m");
+    new Tone.Loop((time) => {
+      if (Math.random() < 0.35) try { n.rumble.triggerAttackRelease(2.4, time, 0.35); } catch (e) {}
+    }, "4m").start("4m");
     n.drone.triggerAttack("D1");
     n.droneHi.triggerAttack("D2");
     Tone.Transport.start("+0.1");
   }
 
+  // Must run synchronously inside a tap: play() keeps the user-activation that autoplay rules require.
+  function startSong() {
+    if (!SONG_URL || song) return;
+    try {
+      const el = document.createElement("audio");
+      el.src = SONG_URL;
+      el.loop = true;
+      el.preload = "auto";
+      el.setAttribute("playsinline", "");
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new Ctx();
+      const src = ctx.createMediaElementSource(el);
+      const an = ctx.createAnalyser();
+      an.fftSize = 512;
+      an.smoothingTimeConstant = 0.3;
+      const gain = ctx.createGain();
+      gain.gain.value = muted ? 0 : level();
+      src.connect(an);
+      an.connect(gain);
+      gain.connect(ctx.destination);
+      song = { el, ctx, an, gain, buf: new Uint8Array(an.frequencyBinCount) };
+      ctx.resume?.();
+      el.addEventListener("error", toScore, { once: true });
+      el.play().then(() => { mode = "song"; changed(); }).catch(toScore);
+    } catch (e) {
+      song = null;
+    }
+  }
+  function toScore() {
+    if (song) {
+      try { song.el.pause(); song.ctx.close?.(); } catch (e) {}
+      song = null;
+    }
+    if (toneOk) { buildScore(); mode = "score"; } else mode = "off";
+    changed();
+  }
+
+  function applyLevel(sec = 1.5) {
+    const g = muted ? 0 : level();
+    if (song) {
+      const p = song.gain.gain, t = song.ctx.currentTime;
+      p.cancelScheduledValues(t);
+      p.setValueAtTime(p.value, t);
+      p.linearRampToValueAtTime(g, t + sec);
+    }
+    if (toneOk) try { n.master.volume.rampTo(toDb(Math.max(0.001, level())), sec); } catch (e) {}
+  }
+
   return {
     get ready() { return ready; },
     get muted() { return muted; },
-    /** Must be called synchronously inside a tap: Tone.start() resumes the AudioContext. */
+    /** "song" | "score" | "off" */
+    get mode() { return mode; },
+    onChange(f) { subs.add(f); },
+    /** Call synchronously inside the tap that unlocks sound. */
     async start() {
-      if (!HAS.tone || ready) return ready;
-      try {
-        await Tone.start();
-        build();
-        ready = true;
-        Tone.Destination.mute = muted;
-      } catch (e) {
-        ready = false;
+      if (ready) return true;
+      ready = true;
+      startSong();
+      if (HAS.tone) {
+        try {
+          await Tone.start();
+          buildSfx();
+          toneOk = true;
+          Tone.Destination.mute = muted;
+        } catch (e) { toneOk = false; }
       }
-      return ready;
+      if (!song) toScore();
+      changed();
+      return true;
     },
     setMuted(m) {
       muted = m;
-      if (ready) Tone.Destination.mute = m;
+      store("mv-muted", m ? "1" : "0");
+      if (toneOk) Tone.Destination.mute = m;
+      if (song) {
+        const p = song.gain.gain, t = song.ctx.currentTime;
+        p.cancelScheduledValues(t);
+        p.setValueAtTime(p.value, t);
+        p.linearRampToValueAtTime(m ? 0 : level(), t + 0.4);
+        if (!m && song.el.paused) song.el.play().catch(() => {});
+      }
+      changed();
+    },
+    /** Volume zones: "letter" ducks to 25%, "finale" lifts to 100%, with 1.5 s crossfades. */
+    zone(name, on) {
+      if (zones[name] === on) return;
+      zones[name] = on;
+      applyLevel(1.5);
+    },
+    duck(on) { this.zone("letter", on); },
+    /** 0..1 low-frequency energy of whatever is playing (drives the beat-reactive visuals). */
+    low() {
+      if (muted || !ready) return 0;
+      if (song && mode === "song") {
+        song.an.getByteFrequencyData(song.buf);
+        let s = 0;
+        for (let i = 1; i <= 5; i++) s += song.buf[i];
+        return s / (5 * 255);
+      }
+      if (scoreOn && n.an) {
+        const v = n.an.getValue(); // dB per bin, roughly -100 (silent) … -20 (loud)
+        let s = 0;
+        for (let i = 0; i < 4; i++) s += v[i];
+        return clamp((s / 4 + 85) / 50, 0, 1);
+      }
+      return 0;
     },
     setLayer(l) { layer = Math.max(layer, l); },
     setChord(i) {
+      if (!scoreOn) return;
       safe(() => {
         chordIdx = i;
         n.pad.releaseAll();
@@ -924,6 +1052,33 @@ const Audio = (() => {
         n.noiseF.frequency.exponentialRampToValueAtTime(soft ? 2400 : 5200, t + 0.45);
         n.noise.volume.value = soft ? -22 : -12;
         n.noise.triggerAttackRelease(soft ? 0.25 : 0.5, t);
+      });
+    },
+    /** Web-shooter "thwip": a short band-passed noise flick. */
+    thwip() {
+      safe(() => {
+        const t = Tone.now();
+        n.thwipF.frequency.cancelScheduledValues(t);
+        n.thwipF.frequency.setValueAtTime(4200, t);
+        n.thwipF.frequency.exponentialRampToValueAtTime(1400, t + 0.12);
+        n.thwip.triggerAttackRelease(0.12, t);
+      });
+    },
+    /** Spider-sense tingle: two quick high bells. */
+    tingle() {
+      safe(() => {
+        const t = Tone.now();
+        n.bell.triggerAttackRelease("C7", "32n", t, 0.35);
+        n.bell.triggerAttackRelease("E7", "32n", t + 0.07, 0.3);
+        n.bell.triggerAttackRelease("G7", "32n", t + 0.14, 0.22);
+      });
+    },
+    /** Thunder: a crack (membrane) under a long brown-noise rumble. */
+    thunder(power = 1) {
+      safe(() => {
+        const t = Tone.now();
+        n.boom.triggerAttackRelease("A0", "1n", t, 0.6 * power);
+        n.rumble.triggerAttackRelease(2.6, t + 0.05, 0.9 * power);
       });
     },
     click(i = 0) { safe(() => n.metal.triggerAttackRelease("32n", Tone.now(), 0.4 + i * 0.15)); },
@@ -943,7 +1098,6 @@ const Audio = (() => {
         n.boom.triggerAttackRelease("D1", "2n", t + 0.9);
       });
     },
-    duck(on) { if (ready) try { n.master.volume.rampTo(on ? -32 : -12, 1.2); } catch (e) {} },
   };
 })();
 
@@ -951,19 +1105,19 @@ function setMuteUI() {
   const b = $("#mute-btn");
   const off = Audio.muted || !Audio.ready;
   b.setAttribute("aria-pressed", String(off));
-  b.setAttribute("aria-label", off ? "Turn sound on" : "Mute sound");
+  b.setAttribute("aria-label", off ? "Play sound" : "Mute sound");
   $(".wave", b).setAttribute("display", off ? "none" : "inline");
   $(".x", b).removeAttribute("hidden");
   $(".x", b).setAttribute("display", off ? "inline" : "none");
 }
+Audio.onChange(setMuteUI);
 $("#mute-btn").addEventListener("click", () => {
   if (!Audio.ready) {
     Audio.setMuted(false);
-    Audio.start().then(setMuteUI);
+    Audio.start();
     return;
   }
   Audio.setMuted(!Audio.muted);
-  setMuteUI();
 });
 
 /* ═══════════════ THEME ═══════════════ */
@@ -1037,19 +1191,6 @@ $("#end-from").textContent = `— from your brother, ${CONFIG.from}, across ever
       cur.style.transform = `translate3d(${x}px, ${y}px, 0)`;
     });
   }
-  // tap sparks (touch)
-  addEventListener("pointerdown", (e) => {
-    if (e.pointerType === "mouse" || REDUCE) return;
-    for (let i = 0; i < 7; i++) {
-      const s = document.createElement("span");
-      s.className = "spark";
-      s.style.left = e.clientX + "px";
-      s.style.top = e.clientY + "px";
-      document.body.appendChild(s);
-      const a = (i / 7) * 6.283 + rand(-0.3, 0.3), d = rand(18, 42);
-      s.animate([{ transform: "translate(0,0) scale(1)", opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px, ${Math.sin(a) * d}px) scale(0.2)`, opacity: 0 }], { duration: 520, easing: "cubic-bezier(.16,1,.3,1)" }).onfinish = () => s.remove();
-    }
-  }, { passive: true });
 })();
 
 /* ═══════════════ RUNE SVG GENERATOR (original glyphs) ═══════════════ */
@@ -1166,6 +1307,7 @@ const Loader = (() => {
     const wait = Math.max(0, (REDUCE ? 300 : 1500) - (performance.now() - started));
     await sleep(wait);
     $("#enter-row").hidden = false;
+    if (Audio.muted) $("#enter-hint").textContent = "tap to enter · sound is off (you muted it last time) — 🔊 anytime";
     $("#loader-cal").textContent = `The multiverse is ready, ${NICK}.`;
     $("#enter-sound").focus({ preventScroll: true });
   });
@@ -1186,7 +1328,9 @@ const Loader = (() => {
       el.hidden = true;
       el.style.display = "none";
       ScrollFX.refresh();
+      emit("enter", { skipIntro });
       if (skipIntro) jumpTo($("#hero"), false);
+      else if (Hooks.intro) Hooks.intro(() => Portal.open());
       else Portal.open();
     };
     if (HAS.gsap && !REDUCE) {
@@ -1199,10 +1343,8 @@ const Loader = (() => {
 
   const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   $("#enter-sound").addEventListener("click", () => {
-    Audio.setMuted(false);
-    const p = Audio.start(); // Tone.start() inside the gesture
+    Audio.start(); // song.play() + Tone.start() inside the gesture (a remembered mute stays muted)
     requestSensors();
-    p.then(setMuteUI);
     if (isIOS) { const hint = $("#silent-hint"); hint.hidden = false; setTimeout(() => (hint.hidden = true), 6000); }
     exit(false);
   });
@@ -1214,7 +1356,7 @@ const Loader = (() => {
   });
   $("#enter-skip").addEventListener("click", () => {
     Audio.setMuted(false);
-    Audio.start().then(setMuteUI);
+    Audio.start();
     requestSensors();
     exit(true);
   });
@@ -1259,6 +1401,7 @@ const Portal = (() => {
   }
   function open() {
     Audio.setLayer(0);
+    emit("portal:open");
     if (!HAS.gsap || REDUCE) {
       if (HAS.gsap) gsap.from("#portal .scene-inner", { opacity: 0, duration: 0.6 });
       return;
@@ -1757,6 +1900,7 @@ const Lock = (() => {
       confetti({ particleCount: COARSE ? 90 : 160, spread: 100, startVelocity: 45, origin: { y: 0.55 }, colors: ["#FFB23F", "#FF6A1A", "#FFE3A8", "#2DF5C8"], disableForReducedMotion: true });
     }
     Letter.unseal();
+    emit("unlock");
     await sleep(REDUCE ? 100 : 900);
     scrollToEl($("#letter"));
   }
@@ -1810,7 +1954,7 @@ const Letter = (() => {
   // music ducks while the letter is on screen
   new IntersectionObserver((es) => es.forEach((e) => {
     const on = e.isIntersecting && !sec.classList.contains("sealed");
-    Audio.duck(on);
+    Audio.zone("letter", on);
     if (on) typeAll();
   }), { threshold: 0.25 }).observe(sec);
   renderAll(); // real text sits blurred under the seal, and is typed afresh once it breaks
@@ -1913,16 +2057,18 @@ const Eggs = (() => {
   }
   // (a) tap her name 7×
   let taps = 0, tapT = 0;
-  ["#hero-name", "#portal-title"].forEach((s) => $(s).addEventListener("click", () => {
+  ["#hero-name", "#portal-title"].forEach((s) => $(s).addEventListener("click", (e) => {
     clearTimeout(tapT);
     tapT = setTimeout(() => (taps = 0), 2500);
     if (++taps < 7) return;
     taps = 0;
-    shootWeb();
+    const r = e.currentTarget.getBoundingClientRect();
+    shootWeb(r.left + r.width / 2, r.top + r.height / 2);
+    emit("sense", { el: e.currentTarget });
     find("web", "Sister-sense tingling!");
   }));
-  function shootWeb() {
-    const w = innerWidth, h = innerHeight, cx = w / 2, cy = h / 2;
+  function shootWeb(cx = innerWidth / 2, cy = innerHeight / 2) {
+    const w = innerWidth, h = innerHeight;
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("class", "web-svg");
     svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
@@ -2008,10 +2154,10 @@ const Eggs = (() => {
     const now = Date.now();
     if (now - shakeT < 2500) return;
     shakeT = now;
-    find("shake", "Snack rain! The Sorcerer Supreme of Snacks approves.");
+    find("storm", "Snack rain! The Sorcerer Supreme of Snacks approves.");
     if (HAS.confetti && snackShapes) confetti({ particleCount: 40, spread: 160, startVelocity: 20, gravity: 0.7, ticks: 260, origin: { x: 0.5, y: 0 }, shapes: snackShapes, scalar: 2, flat: true, disableForReducedMotion: true });
   }
-  return { shake, secretWord };
+  return { shake, secretWord, find };
 })();
 
 /* ═══════════════ 12 · GRAND FINALE ═══════════════ */
@@ -2111,7 +2257,7 @@ const Finale = (() => {
     if (!visible.finale) return;
     phaseT += dt;
     spin += dt * (phase === "number" ? 0.2 : 0.8);
-    if (phase === "gather" && phaseT > 2.8) { phase = "number"; phaseT = 0; Audio.boom(); }
+    if (phase === "gather" && phaseT > 2.8) { phase = "number"; phaseT = 0; Audio.boom(); emit("finale:number"); }
     ctx.clearRect(0, 0, W, H);
     const R0 = Math.min(W, H) * 0.42;
     const perRing = Math.ceil(N / 3);
@@ -2218,6 +2364,7 @@ const Finale = (() => {
     }
     Audio.fanfare();
     Audio.setLayer(2);
+    emit("candle:out");
     fireworks();
     if (HAS.confetti) {
       const end = Date.now() + 1500;
@@ -2282,7 +2429,8 @@ const Finale = (() => {
   }
   $("#replay").addEventListener("click", () => {
     replay();
-    jumpTo($("#portal"), true, () => Portal.open());
+    emit("replay");
+    jumpTo($("#portal"), "portal", () => Portal.open());
   });
   return {};
 })();
@@ -2306,8 +2454,9 @@ function scrollToEl(el, instant) {
   if (lenis) lenis.scrollTo(el, { immediate: !!instant, duration: 1.4 });
   else el.scrollIntoView({ behavior: instant || REDUCE ? "auto" : "smooth" });
 }
-/** Portal-wipe jump: a circle opens over the screen, we jump, and it closes onto the new universe. */
+/** Scene jump. Default: the web-swing (layers.js). wipe === "portal": a portal circle opens, we jump, it closes. */
 function jumpTo(el, wipe = true, after) {
+  if (wipe === true && Hooks.swing && !REDUCE && HAS.gsap) return Hooks.swing(el, after);
   if (!wipe || REDUCE || !HAS.gsap) {
     scrollToEl(el, true);
     el.focus?.({ preventScroll: true });
@@ -2375,6 +2524,14 @@ const ScrollFX = (() => {
 })();
 
 setMuteUI();
+
+// Test hook (only with ?mvdebug in the URL): lets automated checks read engine state.
+if (/[?&]mvdebug\b/.test(location.search)) window.__mv = { audio: () => ({ mode: Audio.mode, muted: Audio.muted, ready: Audio.ready, low: Audio.low() }) };
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Layers: web-swinger (red/blue/white, elastic) + thunder (volt blue/gold, fast & sharp)
+   on top of the sorcerer base (slow & mystical). Plugs into Bus / Hooks from app.js.
+   ════════════════════════════════════════════════════════════════════════════ */
 
 })();
 </script>

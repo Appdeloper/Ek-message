@@ -1,5 +1,7 @@
-// Assembles the single deployable file: index.html = page.html + CDN scripts + config + photos + app.
-import { readFileSync, writeFileSync, statSync } from "node:fs";
+// Assembles the single deployable file: index.html = page.html + CDN scripts + config + photos + app + layers.
+// Her song: drop it at assets/manaswi-theme.mp3 (≤ 4 MB). Absent → the generated score plays instead.
+// SONG=<path> overrides the song path (used for local testing).
+import { readFileSync, writeFileSync, statSync, existsSync } from "node:fs";
 
 const CDN = [
   "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js",
@@ -11,7 +13,20 @@ const CDN = [
   "https://cdn.jsdelivr.net/npm/lenis@1.3.8/dist/lenis.min.js",
 ];
 const page = readFileSync("src/page.html", "utf8");
-const js = [readFileSync("src/config.js", "utf8"), readFileSync("src/photos.js", "utf8"), readFileSync("src/app.js", "utf8")].join("\n");
+const SONG = process.env.SONG || "assets/manaswi-theme.mp3";
+let songUrl = null;
+if (existsSync(SONG)) {
+  songUrl = SONG;
+  const mb = statSync(SONG).size / 1048576;
+  console.log(`song: ${SONG} (${mb.toFixed(2)} MB)${mb > 4 ? "  ⚠ over the 4 MB budget — compress it (e.g. 128 kbps mono)" : ""}`);
+} else console.log(`song: ${SONG} not found → generated score will play`);
+const js = [
+  `const SONG_URL = ${JSON.stringify(songUrl)};`,
+  readFileSync("src/config.js", "utf8"),
+  readFileSync("src/photos.js", "utf8"),
+  readFileSync("src/app.js", "utf8"),
+  readFileSync("src/layers.js", "utf8"),
+].join("\n");
 if (/<\/script/i.test(js)) throw new Error("inline JS must not contain </script");
 // Own scope: a CDN library defines a global "$", and nothing of ours should leak into window either.
 const scripts = CDN.map((u) => `<script src="${u}"></script>`).join("\n") + `\n<script>\n(() => {\n"use strict";\n${js}\n})();\n</script>`;
