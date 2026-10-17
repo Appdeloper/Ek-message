@@ -71,4 +71,13 @@ const CONFIG = {
 
   // Scene 11 — easter egg (d): type this word anywhere (or in the spell box) to see a hidden childhood photo
   secretWord: "multiverse",
+
+  // Gallery "Comic Panel" mode — the sound-effect burst on each card, in card order (cycles if shorter).
+  // Edit freely: any short shout works. The speech bubbles reuse the gallery labels above.
+  comic: {
+    sfx: ["THWIP!", "SNORE!", "KRAK-KRAK!", "ZAP!", "WHOOSH!", "VRRRM!", "SHADES ON!", "TA-DAA!"],
+  },
+
+  // Storm intro: clouds roll in and lightning ignites the portal after "Open the Portal". false = straight to the portal.
+  stormIntro: true,
 };

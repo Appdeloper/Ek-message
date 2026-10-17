@@ -46,6 +46,10 @@
   --parchment-b: #DCC08E;
   --parchment-ink: #3B2814;
   --on-gold: #1A1004;
+  --volt: #5AD1FF;
+  --storm: #3A4250;
+  --web-ink: rgba(255, 255, 255, 0.92);
+  --web-faint: rgba(255, 255, 255, 0.16);
   color-scheme: dark;
 }
 :root[data-theme="light"] {
@@ -66,6 +70,10 @@
   --parchment-b: #EBD6AE;
   --parchment-ink: #3B2814;
   --on-gold: #FFF8EC;
+  --volt: #0B6E99;
+  --storm: #5A6472;
+  --web-ink: rgba(30, 58, 138, 0.85);
+  --web-faint: rgba(30, 58, 138, 0.18);
   color-scheme: light;
 }
 :root {
@@ -398,6 +406,81 @@ body.mirror-mode .kaleido { opacity: 0.35; }
 body.frozen { filter: grayscale(1) contrast(1.1); }
 
 footer { padding: var(--s7) var(--gut-r) calc(var(--safe-b) + var(--s9)) var(--gut-l); text-align: center; color: var(--muted); font-size: 13px; }
+
+
+/* ══════════════ LAYERS: web-swinger (elastic) · thunder (sharp) ══════════════ */
+.fx-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 87; pointer-events: none; }
+.sky-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.sky-flash { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0; background: radial-gradient(120% 70% at 50% 0%, rgba(150, 220, 255, 0.55), rgba(90, 209, 255, 0.12) 60%, transparent); }
+.storm-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 62; pointer-events: none; }
+
+/* cinematic letterbox + stronger grain (intro, finale) */
+.letterbox { position: fixed; left: 0; right: 0; height: 7dvh; z-index: 63; background: #000; pointer-events: none; transform: scaleY(0); transition: transform 0.9s cubic-bezier(0.76, 0, 0.24, 1); }
+.letterbox.top { top: 0; transform-origin: top; }
+.letterbox.bottom { bottom: 0; transform-origin: bottom; }
+body.cinema .letterbox { transform: scaleY(1); }
+body.cinema .grain { opacity: 0.12; transition: opacity 0.9s; }
+
+/* spider-sense */
+.sense { position: fixed; z-index: 86; width: 96px; height: 34px; margin-left: -48px; margin-top: -34px; pointer-events: none; }
+.sense svg { width: 100%; height: 100%; overflow: visible; }
+.sense path { fill: none; stroke: var(--web-ink); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px #C8102E); }
+
+/* hero corner webs + footer skyline */
+.corner-web { position: absolute; top: 0; width: min(46vw, 340px); aspect-ratio: 1; pointer-events: none; color: var(--web-faint); z-index: -1; }
+.corner-web.tl { left: 0; transform-origin: 0 0; }
+.corner-web.tr { right: 0; transform-origin: 100% 0; }
+.corner-web svg { width: 100%; height: 100%; overflow: visible; }
+.skyline { display: block; width: 100%; height: clamp(70px, 18vw, 150px); margin: 0 0 var(--s5); color: var(--ink-2); }
+.skyline .win { fill: var(--gold); opacity: 0.55; }
+.skyline .silk { stroke: var(--web-ink); opacity: 0.35; }
+
+/* gallery: web strands + comic panel mode */
+.cards-viewport .strands { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.ucard .sfx { display: none; }
+.comic-btn { width: auto; padding: 0 var(--s3); border-radius: 999px; font: 400 16px/1 var(--f-fun); letter-spacing: 0.06em; color: var(--text); }
+.comic-btn[aria-pressed="true"] { background: #FFE14D; color: #111; border-color: #111; }
+.comic .ucard { border: 4px solid #111; border-radius: 6px; box-shadow: 8px 8px 0 #111; background: #fff; }
+.comic .ucard:not(.active) { opacity: 0.6; filter: grayscale(0.3); }
+.comic .ucard img { filter: contrast(1.25) saturate(1.3); }
+.comic .ucard .sheen { mix-blend-mode: multiply; opacity: 0.35; background: radial-gradient(circle, #111 1.1px, transparent 1.4px) 0 0 / 7px 7px; }
+.comic .ucard .meta { left: 10px; right: 10px; bottom: 12px; padding: 10px 14px; background: #fff; color: #111; border: 3px solid #111; border-radius: 22px; box-shadow: 3px 3px 0 #111; }
+.comic .ucard .meta::after { content: ""; position: absolute; left: 28px; top: -16px; width: 22px; height: 18px; background: #fff; border-left: 3px solid #111; border-top: 3px solid #111; transform: skewX(-25deg); clip-path: polygon(0 0, 100% 0, 0 100%); }
+.comic .ucard .code { position: absolute; left: -3px; top: -38px; padding: 4px 8px; background: #FFE14D; color: #111; border: 3px solid #111; letter-spacing: 0.12em; }
+.comic .ucard .label { margin: 0; font-size: clamp(18px, 4.8vw, 22px); color: #111; }
+.comic .ucard .sfx { display: grid; place-items: center; position: absolute; right: 8px; top: 10px; z-index: 2; min-width: 110px; padding: 18px 16px; font: 400 clamp(22px, 6vw, 30px)/1 var(--f-fun); letter-spacing: 0.04em; color: #FFE14D; -webkit-text-stroke: 2px #111; paint-order: stroke fill; background: #C8102E; clip-path: polygon(50% 0, 61% 18%, 82% 6%, 78% 30%, 100% 34%, 84% 52%, 98% 72%, 74% 72%, 72% 96%, 54% 80%, 36% 100%, 32% 76%, 6% 84%, 18% 60%, 0 42%, 20% 32%, 12% 8%, 36% 18%); transform: rotate(-8deg); pointer-events: none; }
+
+/* runic border glow (original rune alphabet, set as --rune-strip by layers.js) */
+.rune-frame { position: relative; }
+.rune-frame::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 3; border: 1px solid rgba(90, 209, 255, 0.32); box-shadow: inset 0 0 14px rgba(90, 209, 255, 0.1); background: var(--rune-strip) repeat-x left 8px top 6px / auto 12px; opacity: 0.8; transition: box-shadow 0.15s, border-color 0.15s; }
+body.beat .rune-frame::after { border-color: rgba(90, 209, 255, 0.7); box-shadow: inset 0 0 22px rgba(90, 209, 255, 0.28), 0 0 18px rgba(90, 209, 255, 0.35); }
+.comic .ucard.rune-frame::after { display: none; }
+.runes-glow { position: absolute; inset: 18%; border-radius: 50%; pointer-events: none; opacity: 0.15; background: radial-gradient(circle, rgba(255, 178, 63, 0.35), rgba(90, 209, 255, 0.12) 45%, transparent 70%); }
+
+/* bifrost beam behind the letter */
+.bifrost { position: absolute; z-index: -1; left: 50%; width: min(190px, 46%); top: -70dvh; bottom: -6%; transform: translateX(-50%) scaleY(0); transform-origin: 50% 100%; pointer-events: none; opacity: 0; filter: blur(6px) saturate(1.3);
+  background: linear-gradient(90deg, transparent, #ff5a6e 12%, #ffb23f 26%, #fff36b 40%, #5dff9e 54%, #5AD1FF 68%, #a77dff 84%, transparent);
+  -webkit-mask: linear-gradient(to top, #000 55%, transparent); mask: linear-gradient(to top, #000 55%, transparent); }
+.bifrost::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.35) 0 2px, transparent 2px 22px); animation: rise 1.2s linear infinite; mix-blend-mode: overlay; }
+.bifrost-sparks { position: absolute; z-index: -1; left: 50%; top: -70dvh; bottom: 0; width: min(260px, 70%); transform: translateX(-50%); pointer-events: none; }
+
+/* storm-forged hammer + candle arcs */
+.candle-wrap { position: relative; }
+.hammer { position: absolute; left: calc(50% - 168px); top: 34px; width: 92px; height: 112px; border: 0; padding: 0; background: none; z-index: 2; transform: rotate(-18deg); opacity: 0; }
+.hammer svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.6)); }
+.hammer canvas { position: absolute; left: -30px; top: -30px; width: 152px; height: 172px; pointer-events: none; }
+.hammer.shown { opacity: 1; }
+.candle .arcs { position: absolute; left: 15px; bottom: 100px; width: 90px; height: 100px; pointer-events: none; }
+
+/* now playing */
+.now-playing { position: fixed; z-index: 39; left: var(--gut-l); bottom: calc(var(--safe-b) + 14px); display: inline-flex; align-items: center; gap: var(--s2); max-width: calc(100vw - 32px); padding: 8px 14px 8px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: 600 12px/1 var(--f-head); letter-spacing: 0.08em; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: opacity 0.6s, transform 0.6s var(--ease-out); }
+.now-playing.gone { opacity: 0; transform: translateY(12px); pointer-events: none; }
+.now-playing .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+.now-playing .eq i { width: 3px; height: 100%; border-radius: 2px; background: var(--volt); transform-origin: bottom; animation: eq 0.9s ease-in-out infinite; }
+.now-playing .eq i:nth-child(2) { animation-delay: -0.3s; } .now-playing .eq i:nth-child(3) { animation-delay: -0.6s; }
+
+@keyframes rise { to { background-position: 0 -22px; } }
+@keyframes eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes drip { 0% { transform: scaleY(0); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
