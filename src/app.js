@@ -1060,9 +1060,9 @@ const Letter = (() => {
 (() => {
   const VARIANTS = {
     snacks: { name: "Sorcerer Supreme of Snacks", photo: "p3", line: "No fridge in any universe is safe.", stats: [["Snacks", 250], ["Sass", 99], ["Sharing", 2]] },
-    owl: { name: "Friendly Neighbourhood Night-Owl", photo: "p6", line: "Awake at 3 AM, guarding the multiverse (and the Wi-Fi).", stats: [["Sleep", 120], ["Sass", 88], ["Mornings", 1]] },
-    drama: { name: "Multiverse Drama Queen", photo: "p5", line: "Every universe has a main character. It's her. In all of them.", stats: [["Drama", 101], ["Sass", 99], ["Chill", 4]] },
-    shop: { name: "Master of Mystic Shopping", photo: "p7", line: "Can open portals. Mostly to checkout pages.", stats: [["Cart", 300], ["Sass", 95], ["Budget", 0]] },
+    owl: { name: "Friendly Neighbourhood Night-Owl", photo: "p2", line: "Awake at 3 AM, guarding the multiverse (and the Wi-Fi).", stats: [["Sleep", 120], ["Sass", 88], ["Mornings", 1]] },
+    drama: { name: "Multiverse Drama Queen", photo: "p4", line: "Every universe has a main character. It's her. In all of them.", stats: [["Drama", 101], ["Sass", 99], ["Chill", 4]] },
+    shop: { name: "Master of Mystic Shopping", photo: "p1", line: "Can open portals. Mostly to checkout pages.", stats: [["Cart", 300], ["Sass", 95], ["Budget", 0]] },
   };
   const card = $("#quiz-card");
   let step = 0, score = {};

@@ -1,76 +1,74 @@
 /* ════════════════════════════════════════════════════════════════════════════
-   CONFIG — every personal detail lives here. Anything marked [PLACEHOLDER] is a
-   working default: the site runs as-is, but replace it with the real thing.
+   CONFIG — every personal detail lives here. Edit freely, then: node tools/build.mjs
    Photos are in the PHOTOS block below (keys p1…p8, letter, baby).
+     p1 peek-a-boo · p2 asleep on the maths book · p3 hands-over-head laugh · p4 exam stress
+     p5 hiding from the camera · p6 motion blur · p7 tiny her in sunglasses · p8 tiny her posing
+     letter = tiny her with the peace sign · baby = tiny her smiling (hidden easter egg)
    ════════════════════════════════════════════════════════════════════════════ */
 const CONFIG = {
   name: "MANASWI",
-  nickname: "Manaswi", // [NICKNAME]
-  from: "DZ", // [MY NAME]
-  age: null, // [AGE] e.g. 21 — the finale forms this number (null → ∞)
-  birthdayLabel: "", // [BIRTHDAY DATE] e.g. "20 October 2026"
-  birthISO: null, // [BIRTH DATE + TIME, IST] e.g. "2005-10-20T06:30:00+05:30" — powers the live age counter
-  birthYear: null, // [BIRTH YEAR] e.g. 2005
+  nickname: "Manav",
+  from: "DZ",
+  age: 16, // the finale forms this number
+  birthdayLabel: "",
+  birthISO: null, // add e.g. "2010-10-20T06:30:00+05:30" to switch on the live age counter
+  birthYear: 2010,
 
-  // Scene 2 + hero photo, letter photo, hidden childhood photo (keys into PHOTOS)
-  heroPhoto: "p1", // [PHOTO_1]
-  letterPhoto: "letter", // [PHOTO_LETTER]
-  babyPhoto: "baby", // [PHOTO_BABY]
+  heroPhoto: "p1",
+  letterPhoto: "letter",
+  babyPhoto: "baby",
 
-  // Scene 4 — Multiverse gallery: one funny "universe" label per photo  [PHOTO_n + labels]
+  // Scene 4 — Multiverse gallery: one funny "universe" label per photo
   gallery: [
-    { photo: "p1", label: "Variant: Sleepy Sorcerer — Threat level: Do Not Disturb" },
-    { photo: "p2", label: "Variant: Selfie Sorceress — 47 takes, 1 approved" },
-    { photo: "p3", label: "Variant: Snack Summoner — the fridge fears her" },
-    { photo: "p4", label: "Variant: Remote Guardian — TV is hers, accept it" },
-    { photo: "p5", label: "Variant: Drama Dimension — Oscar pending" },
-    { photo: "p6", label: "Variant: Night-Owl Mystic — sleeps at 4, wakes at 'kya hai'" },
-    { photo: "p7", label: "Variant: Shopping Sorceress — cart has 37 items, budget has 0" },
-    { photo: "p8", label: "Variant: Original Timeline — the real one, unfortunately for us" },
+    { photo: "p1", label: "Variant: Peek-a-Boo Sorceress — face hidden, smile leaked" },
+    { photo: "p2", label: "Variant: Sleepy Sorcerer — learning Maths & Stats by osmosis" },
+    { photo: "p3", label: "Variant: Paparazzi-Proof — zero clear photos since 2010" },
+    { photo: "p4", label: "Variant: Exam Mode — calculating the probability of passing" },
+    { photo: "p5", label: "Variant: Ninja Mode — vanishes the second a phone comes out" },
+    { photo: "p6", label: "Variant: Speedster — moved faster than the shutter" },
+    { photo: "p7", label: "Variant: Original Timeline (Mini) — attitude since birth" },
+    { photo: "p8", label: "Variant: Tiny Dancer — the drama started early" },
   ],
 
   // Scene 5 — photos on the 3D mirror-dimension ring (6–8 keys)
-  mirror: ["p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8"],
+  mirror: ["p1", "p7", "p3", "p8", "p2", "p5", "p4", "p6"],
 
-  // Scene 6 — Archives  [MEMORY 1-3]
+  // Scene 6 — Archives
   memories: [
-    { year: "[YEAR]", title: "The First Portal", story: "Placeholder memory. Write the year, a title and a 2-line story here — the day it all started.", photo: "p2" },
-    { year: "[YEAR]", title: "The Great Remote War", story: "Placeholder memory. The fight nobody won, which she still claims she won.", photo: "p4" },
-    { year: "[YEAR]", title: "The Midnight Snack Heist", story: "Placeholder memory. Replace with a real story only the two of you know.", photo: "p3" },
+    { year: "2010", title: "The Origin Story", story: "A tiny sorceress arrives. The house has not been quiet since.", photo: "p7" },
+    { year: "Childhood", title: "The Pose Era", story: "Before she learned to hide from cameras, she posed for every single one. The evidence is on file.", photo: "p8" },
+    { year: "Std XI", title: "The Maths & Stats Saga", story: "Book open, eyes closed, phone under the desk. A masterclass in multitasking.", photo: "p2" },
   ],
 
-  // Scene 7 — the spell lock  [SECRET SPELL WORD] [ALT SPELLINGS] [HINT 1] [HINT 2]
+  // Scene 7 — the spell lock (answer is case-insensitive)
   spell: "abracadabra",
   spellAlts: ["abra ka dabra", "abrakadabra"],
-  hint1: "Hint: the oldest magic word in every kid's book. (Placeholder hint)",
-  hint2: "Big hint: abra… you finish it. (Placeholder hint)",
+  hint1: "Hint: the oldest magic word in every kid's book.",
+  hint2: "Big hint: abra… you finish it.",
 
-  // Scene 8 — the letter  [PERSONAL MESSAGE] [SIGN-OFF]
+  // Scene 8 — the letter (one string per paragraph)
   letter: [
-    "Oye Manaswi,",
-    "Placeholder letter — replace this with your own words. Saal bhar tujhe tang karna mera official kaam hai, aur main apna kaam bahut seriously leta hoon.",
-    "But sach bolu toh — jitne bhi universes hain, har ek mein main tera hi bhai banna choose karunga. Even the one where you hide the remote.",
-    "Is saal tujhe sab mile: khushi, sukoon, success, aur ek full night ki neend. Happy Birthday, Sorcerer Supreme.",
+    "Oye Manav,",
+    "Sixteen. Officially. Saal bhar tujhe tang karna mera kaam hai, aur main apna kaam bahut seriously leta hoon — but aaj ek din ki chhutti.",
+    "Tu camera dekhte hi chehra chhupa leti hai, par sach ye hai ki tu jitni hai na, utni hi perfect hai. Jitne bhi universes hain, har ek mein main tera hi bhai banna choose karunga. Even the one where you steal the remote.",
+    "Is saal tujhe sab mile: khushi, sukoon, achhe marks (Maths & Stats bhi!), aur ek full night ki neend. Happy 16th Birthday, Sorcerer Supreme.",
   ],
-  signoff: "— Tera permanent pain-in-the-neck bhai, DZ", // [SIGN-OFF]
+  signoff: "— Tera permanent pain-in-the-neck bhai, DZ",
 
-  // Scene 9 — quiz built from inside jokes  [INSIDE JOKE 1-3]
+  // Scene 9 — "which variant" quiz
   quiz: [
     { q: "It's 2 AM. What is she doing?", a: [["Ordering snacks 'for later'", "snacks"], ["Watching one more episode", "owl"], ["Replaying an argument from 2019", "drama"], ["Adding things to cart", "shop"]] },
+    { q: "Someone takes out a camera. She…", a: [["Asks for a snack bribe first", "snacks"], ["Is already asleep on the desk", "owl"], ["Hides her face like it's a crime scene", "drama"], ["Wants it only if the outfit is new", "shop"]] },
     { q: "Pick a superpower.", a: [["Infinite fridge", "snacks"], ["Never needing an alarm", "owl"], ["Winning every argument", "drama"], ["Unlimited card limit", "shop"]] },
-    { q: "Her reaction when someone touches her stuff:", a: [["Eats their snack in revenge", "snacks"], ["Stays calm, plots at night", "owl"], ["Full movie scene, background music included", "drama"], ["Buys a better one, shows it off", "shop"]] },
     { q: "Her ideal birthday?", a: [["All-you-can-eat buffet", "snacks"], ["Sleeping till 2 PM", "owl"], ["Being the main character all day", "drama"], ["A mall + no budget", "shop"]] },
-    { q: "The word family uses for her most:", a: [["Bhukkad", "snacks"], ["Ullu", "owl"], ["Drama queen", "drama"], ["Shopaholic", "shop"]] },
+    { q: "A Maths & Stats class starts. She…", a: [["Opens the tiffin", "snacks"], ["Uses the textbook as a pillow", "owl"], ["Sighs loud enough for the whole class", "drama"], ["Checks sale notifications under the desk", "shop"]] },
   ],
 
-  // Scene 10 — Council of Wishes  [FAMILY WISHES]
+  // Scene 10 — Council of Wishes. Family can also add theirs live with the box on the page.
   wishes: [
-    { name: "Mummy", text: "Placeholder wish — ask Mummy for one line!" },
-    { name: "Papa", text: "Placeholder wish — Papa's one-liner goes here." },
-    { name: "DZ", text: "Happy Birthday! Remote abhi bhi mera hai. Placeholder." },
-    { name: "Best friend", text: "Placeholder wish from her best friend." },
+    { name: "DZ", text: "Happy 16th, Manav! Remote abhi bhi mera hai. Baaki sab tera." },
   ],
 
-  // Scene 11 — easter egg (d): type this word anywhere (or in the spell box)  [CUSTOM WORD]
+  // Scene 11 — easter egg (d): type this word anywhere (or in the spell box) to see a hidden childhood photo
   secretWord: "multiverse",
 };
